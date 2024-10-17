@@ -1,0 +1,170 @@
+#include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
+#include <iostream>
+#include <vector>
+#include <ctime>
+#include <sstream>
+
+// Размеры сетки Судоку (9x9)
+const int SIZE = 9;
+const int CELL_SIZE = 60;
+const int BOARD_SIZE = SIZE * CELL_SIZE;
+
+// Готовая раскладка для демонстрации
+int board[SIZE][SIZE] = {
+    {5, 3, 0, 0, 7, 0, 0, 0, 0},
+    {6, 0, 0, 1, 9, 5, 0, 0, 0},
+    {0, 9, 8, 0, 0, 0, 0, 6, 0},
+    {8, 0, 0, 0, 6, 0, 0, 0, 3},
+    {4, 0, 0, 8, 0, 3, 0, 0, 1},
+    {7, 0, 0, 0, 2, 0, 0, 0, 6},
+    {0, 6, 0, 0, 0, 0, 2, 8, 0},
+    {0, 0, 0, 4, 1, 9, 0, 0, 5},
+    {0, 0, 0, 0, 8, 0, 0, 7, 9}
+};
+
+// Проверка, можно ли вставить число num в ячейку (row, col)
+bool isValid(int board[SIZE][SIZE], int row, int col, int num) {
+    for (int i = 0; i < SIZE; i++) {
+        if (board[row][i] == num || board[i][col] == num) return false;
+    }
+
+    int startRow = row / 3 * 3;
+    int startCol = col / 3 * 3;
+
+    for (int i = startRow; i < startRow + 3; i++) {
+        for (int j = startCol; j < startCol + 3; j++) {
+            if (board[i][j] == num) return false;
+        }
+    }
+
+    return true;
+}
+
+// Проверка, заполнено ли поле и корректно ли решение
+bool checkCompletion(int board[SIZE][SIZE]) {
+    for (int row = 0; row < SIZE; row++) {
+        for (int col = 0; col < SIZE; col++) {
+            if (board[row][col] == 0 || !isValid(board, row, col, board[row][col])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+int main() {
+    // Инициализация окна
+    sf::RenderWindow window(sf::VideoMode(BOARD_SIZE, BOARD_SIZE + 60), "Sudoku Game");
+    window.setFramerateLimit(60);
+
+    sf::Font font;
+    if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+        std::cerr << "Не удалось загрузить шрифт!" << std::endl;
+        return -1;
+    }
+
+
+    // Время начала игры
+    sf::Clock clock;
+
+    int selectedRow = -1, selectedCol = -1;
+    bool gameWon = false;
+
+    // Основной игровой цикл
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                window.close();
+            }
+
+            // Обработка кликов мышью для выбора ячейки
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                int x = event.mouseButton.x;
+                int y = event.mouseButton.y;
+                if (x < BOARD_SIZE && y < BOARD_SIZE) {
+                    selectedRow = y / CELL_SIZE;
+                    selectedCol = x / CELL_SIZE;
+                }
+            }
+
+            // Ввод чисел с клавиатуры
+            if (event.type == sf::Event::TextEntered) {
+                if (selectedRow != -1 && selectedCol != -1 && board[selectedRow][selectedCol] == 0) {
+                    int number = event.text.unicode - '0';
+                    if (number >= 1 && number <= 9 && isValid(board, selectedRow, selectedCol, number)) {
+                        board[selectedRow][selectedCol] = number;
+
+                        // Проверка, выиграна ли игра
+                        if (checkCompletion(board)) {
+                            gameWon = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        window.clear(sf::Color::White);
+
+        // Отрисовка сетки и цифр
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
+                cell.setPosition(col * CELL_SIZE, row * CELL_SIZE);
+                cell.setOutlineThickness(2);
+                cell.setOutlineColor(sf::Color::Black);
+                cell.setFillColor(sf::Color::White);
+
+                window.draw(cell);
+
+                if (board[row][col] != 0) {
+                    sf::Text text;
+                    text.setFont(font);
+                    text.setString(std::to_string(board[row][col]));
+                    text.setCharacterSize(24);
+                    text.setFillColor(sf::Color::Black);
+                    text.setPosition(col * CELL_SIZE + 20, row * CELL_SIZE + 10);
+
+                    window.draw(text);
+                }
+            }
+        }
+
+        // Отображение выбранной ячейки
+        if (selectedRow != -1 && selectedCol != -1) {
+            sf::RectangleShape highlight(sf::Vector2f(CELL_SIZE, CELL_SIZE));
+            highlight.setPosition(selectedCol * CELL_SIZE, selectedRow * CELL_SIZE);
+            highlight.setFillColor(sf::Color(100, 100, 250, 100));
+            window.draw(highlight);
+        }
+
+        // Отображение времени
+        sf::Text timerText;
+        timerText.setFont(font);
+        timerText.setCharacterSize(24);
+        timerText.setFillColor(sf::Color::Black);
+
+        sf::Time elapsed = clock.getElapsedTime();
+        std::stringstream ss;
+        ss << "Time: " << static_cast<int>(elapsed.asSeconds()) << " sec";
+        timerText.setString(ss.str());
+        timerText.setPosition(10, BOARD_SIZE + 10);
+        window.draw(timerText);
+
+        // Если игра выиграна, отображаем сообщение
+        if (gameWon) {
+            sf::Text winText;
+            winText.setFont(font);
+            winText.setString("You Won!");
+            winText.setCharacterSize(40);
+            winText.setFillColor(sf::Color::Red);
+            winText.setPosition(BOARD_SIZE / 2 - 60, BOARD_SIZE / 2 - 40);
+            window.draw(winText);
+        }
+
+        window.display();
+    }
+
+    return 0;
+}

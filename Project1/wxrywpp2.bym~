@@ -1,0 +1,133 @@
+#include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
+#include <SFML/System.hpp>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <iostream>
+
+const int WINDOW_WIDTH = 800;
+const int WINDOW_HEIGHT = 600;
+const int COCKROACH_COUNT = 5;
+const float COCKROACH_SPEED = 1.0f; // Скорость движения тараканов
+const float HUNT_TIME = 60.0f; // Время охоты в секундах
+
+class Cockroach {
+public:
+    sf::Sprite sprite;
+    sf::Vector2f velocity;
+
+    Cockroach(const sf::Texture& texture) {
+        sprite.setTexture(texture);
+        sprite.setPosition(rand() % (WINDOW_WIDTH - 64), rand() % (WINDOW_HEIGHT - 64));
+        velocity.x = (rand() % 200 - 100) / 100.0f * COCKROACH_SPEED; // Случайная скорость по X
+        velocity.y = (rand() % 200 - 100) / 100.0f * COCKROACH_SPEED; // Случайная скорость по Y
+    }
+
+    void update() {
+        sprite.move(velocity);
+
+        // Проверка границ экрана
+        if (sprite.getPosition().x < 0 || sprite.getPosition().x > WINDOW_WIDTH - sprite.getGlobalBounds().width) {
+            velocity.x = -velocity.x;
+        }
+        if (sprite.getPosition().y < 0 || sprite.getPosition().y > WINDOW_HEIGHT - sprite.getGlobalBounds().height) {
+            velocity.y = -velocity.y;
+        }
+    }
+};
+
+int main() {
+    // Инициализация случайного генератора
+    srand(static_cast<unsigned int>(time(nullptr)));
+
+    // Создание окна
+    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Охота на тараканов");
+    window.setFramerateLimit(60); // Ограничение FPS
+
+    // Загрузка текстур
+    sf::Texture cockroachTexture;
+    if (!cockroachTexture.loadFromFile("cockroach.png")) {
+        std::cerr << "Ошибка загрузки файла cockroach.png" << std::endl;
+        return -1;
+    }
+
+    // Создание тараканов
+    std::vector<Cockroach> cockroaches;
+    for (int i = 0; i < COCKROACH_COUNT; ++i) {
+        cockroaches.emplace_back(cockroachTexture);
+    }
+
+    // Создание прицела
+    sf::Texture crosshairTexture;
+    if (!crosshairTexture.loadFromFile("crosshair.png")) {
+        std::cerr << "Ошибка загрузки файла crosshair.png" << std::endl;
+        return -1;
+    }
+    sf::Sprite crosshair(crosshairTexture);
+    crosshair.setOrigin(crosshairTexture.getSize().x / 2, crosshairTexture.getSize().y / 2);
+    crosshair.setPosition(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+
+    // Инициализация времени
+    sf::Clock clock;
+    float score = 0;
+
+    // Основной цикл игры
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                window.close();
+            }
+        }
+
+        // Управление прицелом
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) crosshair.move(-5.f, 0);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) crosshair.move(5.f, 0);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) crosshair.move(0, -5.f);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) crosshair.move(0, 5.f);
+
+        // Обработка выстрела
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+            sf::Vector2f crosshairPos = crosshair.getPosition();
+            for (auto it = cockroaches.begin(); it != cockroaches.end(); ) {
+                if (it->sprite.getGlobalBounds().contains(crosshairPos)) {
+                    it = cockroaches.erase(it); // Удалить убитого таракана
+                    score++;
+                }
+                else {
+                    ++it;
+                }
+            }
+        }
+
+        // Обновление тараканов
+        for (auto& cockroach : cockroaches) {
+            cockroach.update();
+        }
+
+        // Проверка окончания времени охоты
+        if (clock.getElapsedTime().asSeconds() >= HUNT_TIME) {
+            std::cout << "Игра окончена. Убитых тараканов: " << score << std::endl;
+
+            // Сохранение результата
+            std::ofstream file("highscores.txt", std::ios::app);
+            if (file.is_open()) {
+                file << score << std::endl;
+                file.close();
+            }
+            break; // Завершение игры
+        }
+
+        // Отрисовка
+        window.clear();
+        for (const auto& cockroach : cockroaches) {
+            window.draw(cockroach.sprite);
+        }
+        window.draw(crosshair);
+        window.display();
+    }
+
+    return 0;
+}

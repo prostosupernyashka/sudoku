@@ -4,13 +4,11 @@
 #include <ctime>
 #include <string>
 
-const int CELL_SIZE = 50;   // Размер каждой клетки
-const int GRID_SIZE = 9;    // Размер сетки (9x9)
-const int WINDOW_SIZE = CELL_SIZE * GRID_SIZE + 10;  // Размер окна
+const int CELL_SIZE = 50; 
+const int GRID_SIZE = 9;   
+const int WINDOW_SIZE = CELL_SIZE * GRID_SIZE + 50;
 
-// Функция для инициализации судоку
 std::vector<std::vector<int>> initializeSudoku() {
-    // Пример начальной конфигурации судоку с пустыми клетками
     std::vector<std::vector<int>> grid = {
         {5, 3, 0, 0, 7, 0, 0, 0, 0},
         {6, 0, 0, 1, 9, 5, 0, 0, 0},
@@ -25,24 +23,20 @@ std::vector<std::vector<int>> initializeSudoku() {
     return grid;
 }
 
-// Функция для отображения времени в формате "минуты:секунды"
 std::string formatTime(int seconds) {
     int minutes = seconds / 60;
     int sec = seconds % 60;
     return std::to_string(minutes) + ":" + (sec < 10 ? "0" : "") + std::to_string(sec);
 }
 
-// Проверка на допустимый ввод числа
 bool isValidNumber(int num, int row, int col, const std::vector<std::vector<int>>& grid) {
     if (num < 1 || num > 9) return false;
 
-    // Проверка по строкам и столбцам
     for (int i = 0; i < GRID_SIZE; i++) {
         if (grid[row][i] == num || grid[i][col] == num)
             return false;
     }
 
-    // Проверка в 3x3 блоке
     int blockRow = (row / 3) * 3;
     int blockCol = (col / 3) * 3;
     for (int i = 0; i < 3; i++) {
@@ -55,45 +49,61 @@ bool isValidNumber(int num, int row, int col, const std::vector<std::vector<int>
     return true;
 }
 
+bool solveSudoku(std::vector<std::vector<int>>& grid) {
+    for (int row = 0; row < GRID_SIZE; ++row) {
+        for (int col = 0; col < GRID_SIZE; ++col) {
+            if (grid[row][col] == 0) { 
+                for (int num = 1; num <= 9; ++num) {
+                    if (isValidNumber(num, row, col, grid)) {
+                        grid[row][col] = num;
+
+                        if (solveSudoku(grid)) {
+                            return true;
+                        }
+
+                        grid[row][col] = 0;
+                    }
+                }
+                return false; 
+            }
+        }
+    }
+    return true;
+}
+
 int main() {
     sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE, WINDOW_SIZE + 50), "Sudoku");
 
-    // Шрифт для отображения текста
     sf::Font font;
     if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
-        std::cerr << "Не удалось загрузить шрифт!" << std::endl;
+        std::cerr << "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ С€СЂРёС„С‚!" << std::endl;
         return -1;
     }
 
-    // Текст для отображения времени
     sf::Text timerText;
     timerText.setFont(font);
     timerText.setCharacterSize(24);
     timerText.setFillColor(sf::Color::Black);
     timerText.setPosition(10, WINDOW_SIZE);
 
-    // Инициализация судоку
+
     std::vector<std::vector<int>> grid = initializeSudoku();
 
-    // Прямоугольник для клеток судоку
     sf::RectangleShape cellShape(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
     cellShape.setOutlineThickness(2);
     cellShape.setOutlineColor(sf::Color::Black);
 
-    int selectedRow = 0, selectedCol = 0;  // Координаты выбранной клетки
-    int inputNumber = 0;  // Текущее введенное число
+    int selectedRow = 0, selectedCol = 0; 
+    int inputNumber = 0; 
 
-    // Время начала игры
     sf::Clock gameClock;
 
-    // Основной цикл игры
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            // Ввод клавиш для перемещения курсора
             if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::Up) {
                     selectedRow = (selectedRow - 1 + GRID_SIZE) % GRID_SIZE;
@@ -108,36 +118,39 @@ int main() {
                     selectedCol = (selectedCol + 1) % GRID_SIZE;
                 }
 
-                // Ввод цифр от 1 до 9
                 if (event.key.code >= sf::Keyboard::Num1 && event.key.code <= sf::Keyboard::Num9) {
                     inputNumber = event.key.code - sf::Keyboard::Num0;
-
-                    // Проверка, можно ли вставить число
                     if (grid[selectedRow][selectedCol] == 0 && isValidNumber(inputNumber, selectedRow, selectedCol, grid)) {
                         grid[selectedRow][selectedCol] = inputNumber;
+                    }
+                }
+
+                if (event.key.code == sf::Keyboard::S) {
+                    if (solveSudoku(grid)) {
+                        std::cout << "РЎСѓРґРѕРєСѓ СЂРµС€РµРЅРѕ!" << std::endl;
+                    }
+                    else {
+                        std::cout << "РЎСѓРґРѕРєСѓ РЅРµ РёРјРµРµС‚ СЂРµС€РµРЅРёСЏ!" << std::endl;
                     }
                 }
             }
         }
 
-        // Очистка окна
         window.clear(sf::Color::White);
 
-        // Рисуем сетку судоку
         for (int row = 0; row < GRID_SIZE; ++row) {
             for (int col = 0; col < GRID_SIZE; ++col) {
                 cellShape.setPosition(col * CELL_SIZE + 5, row * CELL_SIZE + 5);
 
                 if (row == selectedRow && col == selectedCol) {
-                    cellShape.setFillColor(sf::Color(200, 200, 200));  // Выделенная клетка
+                    cellShape.setFillColor(sf::Color(200, 200, 200));
                 }
                 else {
-                    cellShape.setFillColor(sf::Color::White);  // Обычные клетки
+                    cellShape.setFillColor(sf::Color::White);
                 }
 
                 window.draw(cellShape);
 
-                // Если значение не ноль, рисуем текст
                 if (grid[row][col] != 0) {
                     sf::Text numberText;
                     numberText.setFont(font);
@@ -150,12 +163,10 @@ int main() {
             }
         }
 
-        // Обновляем и отображаем таймер
         int elapsedTime = gameClock.getElapsedTime().asSeconds();
         timerText.setString("Time: " + formatTime(elapsedTime));
         window.draw(timerText);
 
-        // Отображаем изменения
         window.display();
     }
 
